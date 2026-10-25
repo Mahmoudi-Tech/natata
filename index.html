@@ -16,7 +16,7 @@
 
   <link rel="preload" href="assets/fonts/cairo-arabic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/cairo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/css/style.css?v=1.2.2">
+  <link rel="stylesheet" href="assets/css/style.css?v=1.4.4">
 
   <script>
     /* تطبيق الوضع قبل أول رسم عشان ما يصير وميض */
@@ -92,6 +92,12 @@
 
       <div class="toasts" id="toasts" aria-live="polite"></div>
       <div class="flash" id="flash" aria-hidden="true"></div>
+
+      <!-- زر الواتساب -->
+      <a class="wa-fab" id="waBtn" href="https://wa.me/201010050851" target="_blank" rel="noopener noreferrer"
+         aria-label="تواصل مع المطوّر على واتساب" title="تواصل على واتساب">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-whatsapp"></use></svg>
+      </a>
 
       <!-- ============ القائمة الرئيسية ============ -->
       <section class="screen screen--menu" id="menuScreen">
@@ -183,7 +189,7 @@
             <div class="champion-card" id="championCard" hidden>
               <span class="champion-card__crown" aria-hidden="true">👑</span>
               <span class="champion-card__text">
-                <small>بطل النطاطة · أعلى رقم</small>
+                <small id="championLabel">بطل النطاطة · أعلى رقم</small>
                 <b id="championName">—</b>
               </span>
               <span class="champion-card__score"><b id="championScore">0</b> م</span>
@@ -224,6 +230,8 @@
               <span><b>👆</b> اسحب للتحرك</span>
               <span><b>⌨️</b> أو ← →</span>
             </p>
+
+            <p class="credit-line">تصميم وتطوير <b>Virus</b></p>
           </div>
         </div>
       </section>
@@ -253,7 +261,7 @@
                      dir="auto" enterkeyhint="done" placeholder="مثال: سارة" aria-label="اسم اللاعب">
               <button id="saveNameBtn" type="button">حفظ</button>
             </div>
-            <small class="name-entry__hint" id="nameHint">الاسم يتحفظ على هذا الجهاز مع نتيجتك.</small>
+            <small class="name-entry__hint" id="nameHint">الاسم يظهر في لوحة الأبطال مع نتيجتك.</small>
           </div>
           <div class="panel__actions">
             <button class="btn btn--primary" type="button" id="againBtn">
@@ -342,12 +350,14 @@
       <symbol id="i-medal" viewBox="0 0 24 24"><path d="m7 3 3.2 6M17 3l-3.2 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="14" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 11.4 13 13.5l2.2.3-1.6 1.6.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.6 2.2-.3 1-2.1Z" fill="currentColor"/></symbol>
       <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.2 14.4A8.4 8.4 0 0 1 9.6 3.8a8.6 8.6 0 1 0 10.6 10.6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
       <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.3 5.3 7 7M17 17l1.7 1.7M18.7 5.3 17 7M7 17l-1.7 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="i-whatsapp" viewBox="0 0 24 24"><path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.18-.3-.02-.46.13-.6.13-.14.3-.35.44-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.7.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.42.25-.69.25-1.29.18-1.41-.08-.13-.28-.2-.58-.35M12.05 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.89 9.89-9.89 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.5A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.54 4.14 1.58 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.69 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.41Z"/></symbol>
     </defs>
   </svg>
 
-  <script src="assets/js/audio.js?v=1.2.2"></script>
-  <script src="assets/js/art.js?v=1.2.2"></script>
-  <script src="assets/js/game.js?v=1.2.2"></script>
-  <script src="assets/js/ui.js?v=1.2.2"></script>
+  <script src="assets/js/audio.js?v=1.4.4"></script>
+  <script src="assets/js/art.js?v=1.4.4"></script>
+  <script src="assets/js/game.js?v=1.4.4"></script>
+  <script src="assets/js/online.js?v=1.4.4"></script>
+  <script src="assets/js/ui.js?v=1.4.4"></script>
 </body>
 </html>

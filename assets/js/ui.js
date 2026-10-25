@@ -6,9 +6,15 @@
 
   var STORE_KEY = 'natata:v1';
   var MAX_RUNS = 8;
-  var VERSION = '1.2.2';
+  var VERSION = '1.4.4';
+  var WA_NUMBER = '201010050851';
+  var WA_TEXT = 'السلام عليكم 👋 جايه من لعبة النطاطة';
 
   var $ = function (id) { return document.getElementById(id); };
+
+  function waHref() {
+    return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(WA_TEXT);
+  }
 
   var el = {
     stage: $('stage'),
@@ -30,6 +36,8 @@
     overScreen: $('overScreen'),
     pauseScreen: $('pauseScreen'),
     playBtn: $('playBtn'),
+    waBtn: $('waBtn'),
+    championLabel: $('championLabel'),
     menuSoundBtn: $('menuSoundBtn'),
     themeBtn: $('themeBtn'),
     menuHowBtn: $('menuHowBtn'),
@@ -155,6 +163,12 @@
   var activeRun = null;
   var nameDirty = false;
   var savedNameTimer = 0;
+  var onlineTop = null;
+  var onlineAt = 0;
+  var onlineBusy = false;
+  var onlineErr = '';
+  var pendingRun = null;
+  var submittedStamp = 0;
 
   function save() {
     try {
@@ -512,6 +526,7 @@
     el.comboPill.hidden = name !== 'playing';
     el.boostJet.hidden = true;
     el.boostMagnet.hidden = true;
+    if (el.waBtn) el.waBtn.hidden = name !== 'menu';
     if (name !== 'playing' && name !== 'pause') hideHint(true);
   }
 
@@ -543,6 +558,7 @@
     el.boostJet.hidden = true;
     el.boostMagnet.hidden = true;
     el.recordBadge.hidden = true;
+    if (el.waBtn) el.waBtn.hidden = true;
     game.start();
     applyAudioSettings();
     if (!store.hintSeen) showHint();
@@ -612,12 +628,37 @@
     el.bestScore.textContent = fmt(store.best);
     el.totalStars.textContent = fmt(store.totalStars);
     el.hudBest.textContent = fmt(store.best);
+    paintChampion();
+  }
 
-    var champ = store.runs && store.runs.length ? store.runs[0] : null;
-    if (champ && champ.m > 0) {
+  function paintChampion() {
+    var localChamp = store.runs && store.runs.length ? store.runs[0] : null;
+    var localBest = localChamp && localChamp.m > 0 ? localChamp.m : store.best;
+    var localName = localChamp && localChamp.m > 0 ? localChamp.n : store.playerName;
+
+    var world = onlineTop && onlineTop.length ? onlineTop[0] : null;
+    var showWorld = false;
+
+    if (world && world.score > 0) {
+      showWorld = !localBest || world.score >= localBest;
+    }
+
+    if (showWorld) {
       el.championCard.hidden = false;
-      el.championName.textContent = displayName(champ.n);
-      el.championScore.textContent = fmt(champ.m);
+      if (el.championLabel) el.championLabel.textContent = 'بطل النطاطة · العالمي 🌍';
+      el.championName.textContent = displayName(world.name);
+      el.championScore.textContent = fmt(world.score);
+      el.championCard.classList.add('is-world');
+      return;
+    }
+
+    el.championCard.classList.remove('is-world');
+    if (el.championLabel) el.championLabel.textContent = 'بطل النطاطة · على جهازك';
+
+    if (localChamp && localChamp.m > 0) {
+      el.championCard.hidden = false;
+      el.championName.textContent = displayName(localChamp.n);
+      el.championScore.textContent = fmt(localChamp.m);
     } else if (store.best > 0) {
       el.championCard.hidden = false;
       el.championName.textContent = displayName(store.playerName);
@@ -627,13 +668,182 @@
     }
   }
 
-  function paintChampion() {
-    var champ = store.runs && store.runs.length ? store.runs[0] : null;
-    if (champ && champ.m > 0) {
-      el.championCard.hidden = false;
-      el.championName.textContent = displayName(champ.n);
-      el.championScore.textContent = fmt(champ.m);
+  /* ---------- لوحة الأبطال العالمية ---------- */
+
+  function online() {
+    return window.NatataOnline || null;
+  }
+
+  function onlineReady() {
+    var o = online();
+    return !!(o && o.enabled());
+  }
+
+  function timeAgo(ts) {
+    if (!ts) return '';
+    var diff = Math.max(0, Date.now() - ts);
+    var min = Math.floor(diff / 60000);
+    if (min < 1) return 'الآن';
+    if (min < 60) return 'قبل ' + fmt(min) + ' د';
+    var hrs = Math.floor(min / 60);
+    if (hrs < 24) return 'قبل ' + fmt(hrs) + ' س';
+    var days = Math.floor(hrs / 24);
+    if (days < 30) return 'قبل ' + fmt(days) + ' يوم';
+    return dateLabel(ts);
+  }
+
+  function isMyRow(row) {
+    var o = online();
+    if (!o || !store.playerName) return false;
+    return row.key === o.keyFor(store.playerName);
+  }
+
+  function medalFor(rank) {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return fmt(rank);
+  }
+
+  function onlineRowsHtml() {
+    return onlineTop.map(function (row) {
+      return '' +
+        '<li' + (isMyRow(row) ? ' class="is-me"' : '') + '>' +
+          '<span class="rank">' + medalFor(row.rank) + '</span>' +
+          '<span class="score-list__main">' +
+            '<b class="score-list__name">' + esc(displayName(row.name)) + (isMyRow(row) ? ' <em class="lb-you">أنت</em>' : '') + '</b>' +
+            '<small>⭐ ' + fmt(row.stars) + (row.date ? ' · ' + timeAgo(row.date) : '') + '</small>' +
+          '</span>' +
+          '<span class="score-list__score"><b>' + fmt(row.score) + '</b><small>م</small></span>' +
+        '</li>';
+    }).join('');
+  }
+
+  function onlinePaneHtml() {
+    if (!onlineReady()) {
+      return '' +
+        '<div class="lb-state">' +
+          '<b>🌍</b>' +
+          'لوحة كل اللاعبين بتتفعّل أول ما يتم ربط قاعدة البيانات.<br>' +
+          'لحد ساعتها، نتائجك محفوظة على جهازك.' +
+        '</div>';
     }
+
+    var head = '' +
+      '<div class="lb-head">' +
+        '<span class="lb-head__title">🌍 أفضل اللاعبين على كل الأجهزة</span>' +
+        '<button class="lb-refresh' + (onlineBusy ? ' is-busy' : '') + '" type="button" data-action="refresh-online"' +
+          (onlineBusy ? ' disabled' : '') + '>🔄 تحديث</button>' +
+      '</div>';
+
+    if (onlineBusy && !onlineTop) {
+      return head + '<div class="lb-state lb-state--load"><b>⏳</b>بنجيب النتائج...</div>';
+    }
+
+    if (onlineErr && !onlineTop) {
+      return head +
+        '<div class="lb-state lb-state--err"><b>📴</b>' +
+          (onlineErr === 'offline' ? 'محتاج نت عشان نجيب نتائج كل اللاعبين.' : 'حصلت مشكلة في الاتصال باللوحة.') +
+          '<button class="btn btn--soft lb-retry" type="button" data-action="refresh-online">جرّب تاني</button>' +
+        '</div>';
+    }
+
+    if (!onlineTop || !onlineTop.length) {
+      return head +
+        '<div class="empty-state"><b>🌱</b>ما فيه نتائج عالمية بعد.<br>العب واكتب اسمك وكن أول واحد!</div>';
+    }
+
+    return head +
+      '<ul class="score-list lb-list">' + onlineRowsHtml() + '</ul>' +
+      '<p class="sheet__note lb-note">' +
+        (onlineAt ? 'آخر تحديث ' + timeAgo(onlineAt) + ' · ' : '') +
+        (onlineErr === 'offline' ? 'بتشوف آخر نسخة محفوظة عندك.' : 'النتائج بتتحدث لما تلعب أو تضغط تحديث.') +
+      '</p>';
+  }
+
+  function paintOnlinePane() {
+    var box = document.getElementById('lbOnline');
+    if (!box) return;
+    box.innerHTML = onlinePaneHtml();
+  }
+
+  function refreshOnline() {
+    var o = online();
+    if (!o || !o.enabled()) {
+      var cached = o ? o.cachedTop() : { at: 0, list: [] };
+      if (cached && cached.list && cached.list.length) {
+        onlineTop = cached.list;
+        onlineAt = cached.at;
+        paintMenuStats();
+        paintOnlinePane();
+      }
+      return Promise.resolve();
+    }
+    if (onlineBusy) return Promise.resolve();
+
+    onlineBusy = true;
+    onlineErr = '';
+    paintOnlinePane();
+
+    return o.fetchTop().then(function (list) {
+      onlineTop = list;
+      onlineAt = Date.now();
+      onlineErr = '';
+    }).catch(function (err) {
+      onlineErr = err && err.offline ? 'offline' : 'error';
+    }).then(function () {
+      onlineBusy = false;
+      paintMenuStats();
+      paintOnlinePane();
+    });
+  }
+
+  function submitRun(run) {
+    var o = online();
+    if (!o || !o.enabled() || !run || !run.m || run.m <= 0) return;
+
+    var name = cleanName(run.n);
+    if (!name || run.d === submittedStamp) return;
+    submittedStamp = run.d;
+
+    o.submit({ name: name, score: run.m, stars: run.s, date: run.d }).then(function (res) {
+      if (!res) return;
+      toast('نتيجتك دخلت لوحة كل اللاعبين', 'mint', '🌍');
+      refreshOnline();
+    }).catch(function (err) {
+      if (err && (err.status === 401 || err.status === 403)) return;
+      if (err && err.offline) {
+        o.queue({ name: name, score: run.m, stars: run.s, date: run.d });
+        toast('النتيجة محفوظة وهتظهر في اللوحة أول ما النت يرجع', null, '📶');
+      } else {
+        toast('ما قدرنا نرسل النتيجة للوحة العالمية', null, '⚠️');
+      }
+    });
+  }
+
+  function initOnline() {
+    var o = online();
+    if (!o) return;
+
+    var cached = o.cachedTop();
+    if (cached && cached.list && cached.list.length) {
+      onlineTop = cached.list;
+      onlineAt = cached.at;
+      paintMenuStats();
+    }
+
+    if (!onlineReady()) return;
+
+    o.flush().then(function (n) {
+      if (n > 0) toast('ظهرت ' + fmt(n) + ' نتيجة كانت محفوظة من غير نت', 'mint', '🌍');
+      return refreshOnline();
+    }).catch(function () {
+      refreshOnline();
+    });
+
+    window.addEventListener('online', function () {
+      refreshOnline();
+    });
   }
 
   function savePlayerName(silent) {
@@ -651,6 +861,7 @@
     save();
     paintMenuStats();
     paintChampion();
+    if (activeRun) submitRun(activeRun);
 
     el.playerNameInput.value = name;
     nameDirty = false;
@@ -675,10 +886,14 @@
 
   function commitNameIfNeeded() {
     if (!el.playerNameInput) return;
-    if (!el.overScreen.hidden && (nameDirty || !store.playerName)) {
-      var v = cleanName(el.playerNameInput.value);
-      if (v) savePlayerName(true);
+    if (el.overScreen.hidden) return;
+
+    var v = cleanName(el.playerNameInput.value);
+    if ((nameDirty || !store.playerName) && v) {
+      savePlayerName(true);
+      return;
     }
+    if (activeRun && store.playerName) submitRun(activeRun);
   }
 
   function updateScore(m) {
@@ -763,13 +978,20 @@
       savedNameTimer = 0;
     }
     el.nameEntry.classList.toggle('is-record', isRecord && result.meters > 0);
+    var world = onlineReady();
     if (isRecord && result.meters > 0) {
-      el.nameHint.textContent = 'رقم قياسي جديد! اكتب اسمك عشان يظهر فوق كبطل النطاطة.';
+      el.nameHint.textContent = world
+        ? 'رقم قياسي جديد! اكتب اسمك واضغط «حفظ» عشان يظهر في لوحة كل اللاعبين.'
+        : 'رقم قياسي جديد! اكتب اسمك عشان يظهر فوق كبطل النطاطة.';
     } else if (activeRun) {
       var rank = store.runs.indexOf(activeRun) + 1;
-      el.nameHint.textContent = 'مركزك #' + fmt(rank) + ' على هذا الجهاز — اسمك يظهر في لوحة الأبطال.';
+      el.nameHint.textContent = world
+        ? 'نتيجتك محفوظة. اضغط «حفظ» عشان تدخل لوحة كل اللاعبين باسمك.'
+        : 'مركزك #' + fmt(rank) + ' على هذا الجهاز — اسمك يظهر في لوحة الأبطال.';
     } else {
-      el.nameHint.textContent = 'اكتب اسمك عشان يتحفظ مع جولاتك الجاية.';
+      el.nameHint.textContent = world
+        ? 'اكتب اسمك واضغط «حفظ» عشان نتيجتك تظهر في لوحة كل اللاعبين.'
+        : 'اكتب اسمك عشان يتحفظ مع جولاتك الجاية.';
     }
 
     if (result.meters < 30) el.overTitle.textContent = 'ما تأثرت؟';
@@ -876,15 +1098,28 @@
         settingRow('reduceMotion', '🌿', 'تقليل الحركة', 'يخفف الاهتزاز والجزيئات والأنيميشن') +
       '</div>' +
       '<div class="sheet__section">' +
+        '<h3>🌍 لوحة كل اللاعبين</h3>' +
+        '<p class="sheet__note">' +
+          (onlineReady()
+            ? 'مفعّلة. اسمك ونتيجتك بيظهروا لكل الناس على كل الأجهزة، وأعلى رقم بيظهر في القائمة الرئيسية.'
+            : 'غير مفعّلة على النسخة الحالية. كل النتائج محفوظة على جهازك، وتشتغل بدون إنترنت.') +
+        '</p>' +
+      '</div>' +
+      '<div class="sheet__section">' +
         '<h3>البيانات</h3>' +
         '<div class="settings-actions">' +
           '<button class="danger-btn" type="button" data-action="reset">مسح كل التقدم والنتائج</button>' +
         '</div>' +
-        '<p class="sheet__note">كل شيء محفوظ على جهازك فقط. ما فيه حسابات ولا إنترنت مطلوب.</p>' +
+        '<p class="sheet__note">تقدمك محفوظ على جهازك حتى بدون إنترنت. مسح البيانات ما بيحذف نتائجك من لوحة كل اللاعبين.</p>' +
       '</div>' +
       '<div class="about-card">' +
         '<b>النطاطة ' + VERSION + '</b>' +
         '<p>لعبة قفز لا نهائية.<br>اجمع النجوم، اكسر رقمك، وما توقف.</p>' +
+        '<p class="about-card__dev">تصميم وتطوير <span>Virus</span></p>' +
+        '<a class="wa-contact" href="' + waHref() + '" target="_blank" rel="noopener noreferrer">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-whatsapp"></use></svg>' +
+          '<span>تواصل واتساب · 0101 005 0851</span>' +
+        '</a>' +
         '<p class="about-card__rights">© جميع الحقوق محفوظة لـ The Witcher Store</p>' +
       '</div>';
   }
@@ -936,7 +1171,7 @@
       '</div>';
   }
 
-  function scoresHtml() {
+  function localPaneHtml() {
     if (!store.runs.length) {
       return '' +
         '<div class="empty-state">' +
@@ -980,6 +1215,40 @@
         '</div>' +
       '</div>' +
       '<p class="sheet__note">النتائج محفوظة على هذا الجهاز، وتشتغل حتى بدون إنترنت.</p>';
+  }
+
+  function scoresHtml() {
+    var world = onlineReady();
+    var activeTab = world ? 'world' : 'local';
+
+    return '' +
+      '<div class="lb-tabs" role="tablist" aria-label="لوحة الأبطال">' +
+        '<button type="button" role="tab" data-lb-tab="world"' +
+          (activeTab === 'world' ? ' class="is-active" aria-selected="true"' : ' aria-selected="false"') + '>🌍 كل اللاعبين</button>' +
+        '<button type="button" role="tab" data-lb-tab="local"' +
+          (activeTab === 'local' ? ' class="is-active" aria-selected="true"' : ' aria-selected="false"') + '>📱 جهازي</button>' +
+      '</div>' +
+      '<div class="lb-pane" data-lb-pane="world"' + (activeTab === 'world' ? '' : ' hidden') + ' id="lbOnline"></div>' +
+      '<div class="lb-pane" data-lb-pane="local"' + (activeTab === 'local' ? '' : ' hidden') + '>' + localPaneHtml() + '</div>';
+  }
+
+  function paintScoresSheet() {
+    paintOnlinePane();
+    if (onlineReady() && !onlineTop) refreshOnline();
+  }
+
+  function setLbTab(name) {
+    var tabs = el.sheetBody.querySelectorAll('[data-lb-tab]');
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].getAttribute('data-lb-tab') === name;
+      tabs[i].classList.toggle('is-active', on);
+      tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    var panes = el.sheetBody.querySelectorAll('[data-lb-pane]');
+    for (var j = 0; j < panes.length; j++) {
+      panes[j].hidden = panes[j].getAttribute('data-lb-pane') !== name;
+    }
+    if (name === 'world' && onlineReady() && !onlineTop && !onlineBusy) refreshOnline();
   }
 
   function achHtml() {
@@ -1065,7 +1334,7 @@
       openSheet('الإعدادات', settingsHtml(), paintSettingsSheet);
     });
     el.scoresBtn.addEventListener('click', function () {
-      openSheet('لوحة الأبطال', scoresHtml());
+      openSheet('لوحة الأبطال', scoresHtml(), paintScoresSheet);
     });
     el.achBtn.addEventListener('click', function () {
       openSheet('الإنجازات', achHtml());
@@ -1083,6 +1352,12 @@
     });
 
     el.sheetBody.addEventListener('click', function (e) {
+      var lbTab = e.target.closest ? e.target.closest('[data-lb-tab]') : null;
+      if (lbTab) {
+        setLbTab(lbTab.getAttribute('data-lb-tab'));
+        clickSound();
+        return;
+      }
       var themeChoice = e.target.closest ? e.target.closest('[data-theme-choice]') : null;
       if (themeChoice) {
         setTheme(themeChoice.getAttribute('data-theme-choice'));
@@ -1091,7 +1366,10 @@
       var btn = e.target.closest ? e.target.closest('[data-action]') : null;
       if (!btn) return;
       var action = btn.getAttribute('data-action');
-      if (action === 'reset') {
+      if (action === 'refresh-online') {
+        refreshOnline();
+        clickSound();
+      } else if (action === 'reset') {
         if (!resetArmed) {
           resetArmed = true;
           btn.classList.add('is-armed');
@@ -1242,6 +1520,10 @@
     bind();
     showMenu();
 
+    initOnline();
+
+    if (el.waBtn) el.waBtn.href = waHref();
+
     if ('serviceWorker' in navigator &&
         (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
       navigator.serviceWorker.register('sw.js').catch(function () { /* تجاهل */ });
@@ -1257,6 +1539,12 @@
         applyGameSettings();
         applyAudioSettings();
         paintSoundButtons();
+      },
+      online: {
+        ready: onlineReady,
+        refresh: refreshOnline,
+        top: function () { return onlineTop; },
+        submit: submitRun
       }
     };
   }

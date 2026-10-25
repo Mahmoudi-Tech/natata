@@ -2646,3 +2646,381 @@ html[data-theme="dark"] .install-chip {
 html[data-theme="dark"] .flash {
   background: radial-gradient(60% 40% at 50% 42%, rgba(255, 236, 170, 0.26), rgba(255, 236, 170, 0) 70%);
 }
+
+/* =========================================================
+   زر الواتساب + اسم المصمم
+   ========================================================= */
+
+.wa-fab {
+  position: absolute;
+  z-index: 45;  left: 14px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(180deg, #129a52 0%, #077a3c 58%, #05632f 100%);
+  box-shadow:
+    0 4px 0 #044f26,
+    0 12px 24px rgba(8, 90, 44, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wa-fab svg {
+  width: 29px;
+  height: 29px;
+  filter: drop-shadow(0 1px 1px rgba(5, 70, 34, 0.35));
+}
+
+.wa-fab::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid rgba(62, 225, 130, 0.55);
+  animation: waPulse 2.8s ease-out infinite;
+  pointer-events: none;
+}
+
+.wa-fab:active {
+  transform: scale(0.93);
+  box-shadow:
+    0 2px 0 #044f26,
+    0 6px 14px rgba(8, 90, 44, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+@keyframes waPulse {
+  0% { opacity: 0.75; transform: scale(0.92); }
+  70% { opacity: 0; transform: scale(1.22); }
+  100% { opacity: 0; transform: scale(1.22); }
+}
+
+.credit-line {
+  margin: 0;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #0e3a5f;
+  opacity: 0.88;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+}.credit-line b {
+  font-weight: 900;
+  color: #0b4f74;
+}
+
+.about-card p.about-card__dev {
+  margin-top: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #8a5a1a;
+}
+
+.about-card p.about-card__dev span {
+  font-weight: 900;
+  color: #6f4410;
+}
+
+.wa-contact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  margin-top: 10px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #0f9a50 0%, #08703a 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: none;
+  text-shadow: 0 1px 1px rgba(3, 55, 26, 0.45);
+  box-shadow:
+    0 4px 0 #05512a,
+    0 8px 16px rgba(8, 90, 44, 0.24);
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wa-contact svg {
+  width: 16px;
+  height: 16px;
+}
+
+.wa-contact:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 2px 0 #05512a,
+    0 4px 10px rgba(8, 90, 44, 0.22);
+}
+
+html[data-theme="dark"] .credit-line {
+  color: #b9cee9;
+  opacity: 0.95;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="dark"] .credit-line b {
+  color: #8fe8cd;
+}
+
+html[data-theme="dark"] .about-card p.about-card__dev {
+  color: #c9b389;
+}
+
+html[data-theme="dark"] .about-card p.about-card__dev span {
+  color: #ffd899;
+}
+
+html[data-theme="dark"] .wa-contact {
+  box-shadow:
+    0 4px 0 #085c2c,
+    0 10px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* مساحة أسفل القائمة لزر الواتساب العائم */
+.menu__bottom {
+  padding-bottom: 56px;
+}
+
+@media (max-height: 480px) {
+  .wa-fab {
+    width: 46px;
+    height: 46px;
+    left: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .wa-fab svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .menu__bottom {
+    padding-bottom: 46px;
+  }
+}
+
+/* =========================================================
+   لوحة الأبطال العالمية (كل اللاعبين)
+   ========================================================= */
+
+.lb-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 16px;
+  background: #f3e8d5;
+  box-shadow: inset 0 0 0 1.5px #e8d8bd;
+}
+
+.lb-tabs button {
+  height: 38px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #8a6a3a;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 900;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lb-tabs button.is-active {
+  background: linear-gradient(180deg, #fffdf6, #fff3d8);
+  color: #7a4f12;
+  box-shadow:
+    0 2px 0 rgba(170, 130, 60, 0.18),
+    inset 0 0 0 1.5px #f0dcb8;
+}
+
+.lb-tabs button:active {
+  transform: scale(0.97);
+}
+
+.lb-pane {
+  margin-top: 11px;
+}
+
+.lb-pane[hidden] {
+  display: none !important;
+}
+
+.lb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.lb-head__title {
+  font-size: 11px;
+  font-weight: 900;
+  color: #8a6a3a;
+}
+
+.lb-refresh {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 11px;
+  background: #fff8ea;
+  color: #8a5a1a;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1.5px #f3e6d1;
+  transition: transform 0.12s ease, opacity 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lb-refresh:active {
+  transform: scale(0.95);
+}
+
+.lb-refresh.is-busy,
+.lb-refresh[disabled] {
+  opacity: 0.55;
+}
+
+.lb-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 16px;
+  border-radius: 16px;
+  background: #fff8ea;
+  box-shadow: inset 0 0 0 1.5px #f3e6d1;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.8;
+  color: #8a6a3a;
+}
+
+.lb-state b {
+  font-size: 25px;
+  line-height: 1;
+}
+
+.lb-state--err {
+  background: #fff1ec;
+  box-shadow: inset 0 0 0 1.5px #ffd9c9;
+  color: #a2523a;
+}
+
+.lb-retry {
+  margin-top: 4px;
+  height: 34px;
+  padding: 0 16px;
+  font-size: 11px;
+}
+
+.lb-list li.is-me {
+  background: linear-gradient(180deg, #eafaf2, #d6f5e7);
+  box-shadow: inset 0 0 0 1.5px #a9e8cd;
+}
+
+.lb-list li.is-me:first-child {
+  background: linear-gradient(180deg, #fff6cf, #ffe9a6);
+  box-shadow: inset 0 0 0 1.5px #ffdf8a;
+}
+
+.lb-you {
+  display: inline-block;
+  margin-inline-start: 4px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: #14855c;
+  color: #fff;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 900;
+  vertical-align: 1px;
+}
+
+.lb-note {
+  text-align: center;
+}
+
+.champion-card.is-world {
+  background: linear-gradient(180deg, #eef8ff, #cfeaff);
+  border-color: #e3f2ff;
+  box-shadow: 0 5px 0 #2f7fb4, 0 12px 22px rgba(20, 90, 140, 0.22);
+  animation: badgePop 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+html[data-theme="dark"] .lb-tabs {
+  background: #16253c;
+  box-shadow: inset 0 0 0 1.5px #253a58;
+}
+
+html[data-theme="dark"] .lb-tabs button {
+  color: #93a9c6;
+}
+
+html[data-theme="dark"] .lb-tabs button.is-active {
+  background: linear-gradient(180deg, #22344f, #1b2b44);
+  color: #ffd899;
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1.5px rgba(255, 206, 90, 0.3);
+}
+
+html[data-theme="dark"] .lb-head__title {
+  color: #c9b389;
+}
+
+html[data-theme="dark"] .lb-refresh {
+  background: #1c2d47;
+  color: #ffd899;
+  box-shadow: inset 0 0 0 1.5px #2b4364;
+}
+
+html[data-theme="dark"] .lb-state {
+  background: #18273e;
+  box-shadow: inset 0 0 0 1.5px #253a58;
+  color: #b9cee9;
+}
+
+html[data-theme="dark"] .lb-state--err {
+  background: #33201f;
+  box-shadow: inset 0 0 0 1.5px #5c3230;
+  color: #ffb8a3;
+}
+
+html[data-theme="dark"] .lb-list li.is-me {
+  background: linear-gradient(180deg, rgba(60, 220, 160, 0.18), rgba(30, 170, 120, 0.1));
+  box-shadow: inset 0 0 0 1.5px rgba(90, 230, 190, 0.34);
+}
+
+html[data-theme="dark"] .lb-list li.is-me:first-child {
+  background: linear-gradient(180deg, rgba(255, 200, 80, 0.16), rgba(255, 180, 40, 0.08));
+  box-shadow: inset 0 0 0 1.5px rgba(255, 206, 90, 0.34);
+}
+
+html[data-theme="dark"] .lb-you {
+  background: #1f9e6e;
+  color: #041d13;
+}
+
+html[data-theme="dark"] .champion-card.is-world {
+  background: linear-gradient(180deg, #1b3a58, #14304a);
+  border-color: #2c5678;
+  box-shadow: 0 5px 0 #0c2438, 0 12px 22px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="dark"] .champion-card.is-world .champion-card__text small {
+  color: #8fc4ee;
+}
