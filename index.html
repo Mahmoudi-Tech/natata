@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" id="metaThemeColor" content="#5cc8f7">
+  <meta name="description" content="النطاطة — لعبة قفز لا نهائية: اقفز بين السحاب، اجمع النجوم، وحطّم رقمك القياسي. تعمل بدون إنترنت.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="النطاطة">
+  <title>النطاطة · قفزة النجوم</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+
+  <link rel="preload" href="assets/fonts/cairo-arabic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/cairo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/style.css?v=1.2.2">
+
+  <script>
+    /* تطبيق الوضع قبل أول رسم عشان ما يصير وميض */
+    (function () {
+      var mode = 'light';
+      try {
+        var saved = JSON.parse(window.localStorage.getItem('natata:v1') || '{}');
+        var picked = saved && saved.settings && saved.settings.theme;
+        if (picked === 'light' || picked === 'dark') mode = picked;
+        else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) mode = 'dark';
+      } catch (err) {
+        mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', mode);
+      var meta = document.getElementById('metaThemeColor');
+      if (meta) meta.setAttribute('content', mode === 'dark' ? '#0a1526' : '#5cc8f7');
+    })();
+  </script>
+</head>
+<body>
+  <div class="app">
+    <div class="page-bg" aria-hidden="true">
+      <span class="page-bg__orb page-bg__orb--1"></span>
+      <span class="page-bg__orb page-bg__orb--2"></span>
+      <span class="page-bg__orb page-bg__orb--3"></span>
+      <span class="page-bg__dots"></span>
+    </div>
+
+    <main class="stage" id="stage">
+      <canvas id="gameCanvas" class="game-canvas" aria-label="ساحة لعب النطاطة"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <header class="hud" id="hud" hidden>
+        <div class="hud__side hud__side--start">
+          <button class="hud-btn" type="button" id="pauseBtn" aria-label="إيقاف مؤقت" title="إيقاف مؤقت">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pause"></use></svg>
+          </button>
+          <button class="hud-btn" type="button" id="hudSoundBtn" aria-label="تشغيل/إيقاف الصوت" title="الصوت">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sound" class="js-sound-use"></use></svg>
+          </button>
+        </div>
+
+        <div class="scorebox" aria-live="polite">
+          <span class="scorebox__value" id="hudScore">0</span>
+          <span class="scorebox__unit">م</span>
+          <span class="scorebox__best">أفضل <b id="hudBest">0</b></span>
+        </div>
+
+        <div class="hud__side hud__side--end">
+          <div class="starbox" title="النجوم المجمّعة">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-star"></use></svg>
+            <span id="hudStars">0</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="combo" id="comboPill" hidden>
+        <span class="combo__x" id="comboMult">×2</span>
+        <span class="combo__label">كومبو</span>
+        <span class="combo__track"><i id="comboBar"></i></span>
+      </div>
+
+      <div class="boosts" id="boosts" aria-live="polite">
+        <div class="boost" id="boostJet" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-rocket"></use></svg>
+          <span class="boost__track"><i id="boostJetBar"></i></span>
+        </div>
+        <div class="boost boost--magnet" id="boostMagnet" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-magnet"></use></svg>
+          <span class="boost__track"><i id="boostMagnetBar"></i></span>
+        </div>
+      </div>
+
+      <div class="toasts" id="toasts" aria-live="polite"></div>
+      <div class="flash" id="flash" aria-hidden="true"></div>
+
+      <!-- ============ القائمة الرئيسية ============ -->
+      <section class="screen screen--menu" id="menuScreen">
+        <div class="menu">
+          <div class="menu__top">
+            <button class="chip-btn" type="button" id="installBtn" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-install"></use></svg>
+              <span>تثبيت</span>
+            </button>
+            <div class="menu__top-gap"></div>
+            <button class="chip-btn chip-btn--icon" type="button" id="menuSoundBtn" aria-label="تشغيل/إيقاف الصوت" title="الصوت">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sound" class="js-sound-use"></use></svg>
+            </button>
+            <button class="chip-btn chip-btn--icon chip-btn--theme" type="button" id="themeBtn" aria-label="الوضع الليلي" title="الوضع الليلي">
+              <svg class="ico-moon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-moon"></use></svg>
+              <svg class="ico-sun" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sun"></use></svg>
+            </button>
+            <button class="chip-btn" type="button" id="menuHowBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"></use></svg>
+              <span>كيف ألعب</span>
+            </button>
+            <button class="chip-btn chip-btn--icon" type="button" id="menuSettingsBtn" aria-label="الإعدادات" title="الإعدادات">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-settings"></use></svg>
+            </button>
+          </div>
+
+          <div class="menu__hero">
+            <div class="mascot" aria-hidden="true">
+              <span class="mascot__spark mascot__spark--1">✦</span>
+              <span class="mascot__spark mascot__spark--2">✦</span>
+              <span class="mascot__spark mascot__spark--3">✦</span>
+              <svg class="mascot__svg" viewBox="0 0 220 230">
+                <defs>
+                  <linearGradient id="mBodyG" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ffd76a"/>
+                    <stop offset=".55" stop-color="#ffab4d"/>
+                    <stop offset="1" stop-color="#ff7a45"/>
+                  </linearGradient>
+                  <linearGradient id="mScarfG" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#4be0c0"/>
+                    <stop offset="1" stop-color="#20a9c9"/>
+                  </linearGradient>
+                  <radialGradient id="mShineG" cx=".35" cy=".28" r=".7">
+                    <stop offset="0" stop-color="#ffffff" stop-opacity=".65"/>
+                    <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+                <ellipse cx="110" cy="212" rx="58" ry="11" fill="#1a3b66" opacity=".18"/>
+                <g class="mascot__bob">
+                  <!-- ذراعان -->
+                  <ellipse cx="46" cy="126" rx="15" ry="10" fill="url(#mBodyG)" stroke="#c2511f" stroke-width="4" transform="rotate(-34 46 126)"/>
+                  <ellipse cx="174" cy="126" rx="15" ry="10" fill="url(#mBodyG)" stroke="#c2511f" stroke-width="4" transform="rotate(34 174 126)"/>
+                  <!-- وشاح خلفي -->
+                  <path d="M62 160 C36 168 26 188 20 204 C42 200 58 190 70 176 Z" fill="url(#mScarfG)" stroke="#128aa8" stroke-width="3.5" stroke-linejoin="round"/>
+                  <path d="M64 168 C50 178 44 192 40 208 C54 200 64 190 72 178 Z" fill="#2ec9b2" opacity=".8"/>
+                  <!-- أقدام -->
+                  <ellipse cx="86" cy="196" rx="19" ry="10" fill="#ffb057" stroke="#c2511f" stroke-width="4"/>
+                  <ellipse cx="134" cy="196" rx="19" ry="10" fill="#ffb057" stroke="#c2511f" stroke-width="4"/>
+                  <!-- الجسم -->
+                  <ellipse cx="110" cy="125" rx="66" ry="68" fill="url(#mBodyG)" stroke="#c2511f" stroke-width="5"/>
+                  <ellipse cx="110" cy="138" rx="45" ry="40" fill="#ffe9b8" opacity=".28"/>
+                  <ellipse cx="110" cy="125" rx="66" ry="68" fill="url(#mShineG)"/>
+                  <!-- وشاح أمامي -->
+                  <path d="M48 152 C68 168 152 168 172 152 C170 166 152 176 110 176 C68 176 50 166 48 152 Z" fill="url(#mScarfG)" stroke="#128aa8" stroke-width="3.5" stroke-linejoin="round"/>
+                  <!-- عيون -->
+                  <g class="mascot__eyes">
+                    <ellipse cx="88" cy="112" rx="15" ry="16" fill="#fff"/>
+                    <ellipse cx="132" cy="112" rx="15" ry="16" fill="#fff"/>
+                    <circle cx="91" cy="114" r="7" fill="#26364d"/>
+                    <circle cx="135" cy="114" r="7" fill="#26364d"/>
+                    <circle cx="93.5" cy="111" r="2.6" fill="#fff"/>
+                    <circle cx="137.5" cy="111" r="2.6" fill="#fff"/>
+                  </g>
+                  <!-- خدود -->
+                  <ellipse cx="62" cy="138" rx="10" ry="7" fill="#ff6b6b" opacity=".4"/>
+                  <ellipse cx="158" cy="138" rx="10" ry="7" fill="#ff6b6b" opacity=".4"/>
+                  <!-- فم -->
+                  <path d="M100 138 Q110 148 120 138" fill="none" stroke="#8a3a16" stroke-width="4" stroke-linecap="round"/>
+                  <!-- زراعة نجمة على البطن -->
+                  <path d="M110 70 l4.2 12.4 13 .4 -10.3 7.8 3.7 12.6 -10.6-7.4 -10.6 7.4 3.7-12.6 -10.3-7.8 13-.4 Z" fill="#fff3c4" opacity=".75"/>
+                </g>
+              </svg>
+            </div>
+            <h1 class="logo">النطاطة</h1>
+            <p class="tagline">اقفز بين السحاب... واجمع النجوم</p>
+          </div>
+
+          <div class="menu__bottom">
+            <div class="champion-card" id="championCard" hidden>
+              <span class="champion-card__crown" aria-hidden="true">👑</span>
+              <span class="champion-card__text">
+                <small>بطل النطاطة · أعلى رقم</small>
+                <b id="championName">—</b>
+              </span>
+              <span class="champion-card__score"><b id="championScore">0</b> م</span>
+            </div>
+
+            <div class="best-row">
+              <div class="best-card">
+                <span class="best-card__ico" aria-hidden="true">🏆</span>
+                <span class="best-card__label">أفضل مسافة</span>
+                <strong><span id="bestScore">0</span> <small>م</small></strong>
+              </div>
+              <div class="best-card">
+                <span class="best-card__ico" aria-hidden="true">⭐</span>
+                <span class="best-card__label">مجموع النجوم</span>
+                <strong id="totalStars">0</strong>
+              </div>
+            </div>
+
+            <button class="play-btn" id="playBtn" type="button">
+              <span class="play-btn__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><use href="#i-play"></use></svg>
+              </span>
+              <span class="play-btn__text">ابدأ اللعب</span>
+            </button>
+
+            <nav class="menu__links" aria-label="المزيد">
+              <button type="button" id="scoresBtn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-trophy"></use></svg>
+                <span>لوحة الأبطال</span>
+              </button>
+              <button type="button" id="achBtn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-award"></use></svg>
+                <span>الإنجازات</span>
+              </button>
+            </nav>
+
+            <p class="menu__hint">
+              <span><b>👆</b> اسحب للتحرك</span>
+              <span><b>⌨️</b> أو ← →</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ نهاية الجولة ============ -->
+      <section class="screen screen--overlay" id="overScreen" hidden>
+        <div class="overlay-scrim"></div>
+        <div class="panel over-panel" role="dialog" aria-modal="true" aria-labelledby="overTitle">
+          <div class="record-badge" id="recordBadge" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-award"></use></svg>
+            رقم قياسي جديد!
+          </div>
+          <h2 class="panel__title" id="overTitle">محاولة حلوة!</h2>
+          <div class="over__score">
+            <strong id="overScore">0</strong>
+            <small>متر</small>
+          </div>
+          <div class="over__grid">
+            <div><span>النجوم</span><b id="overStars">0</b></div>
+            <div><span>أفضل كومبو</span><b id="overCombo">×1</b></div>
+            <div><span>أفضل مسافة</span><b id="overBest">0</b></div>
+          </div>
+          <div class="name-entry" id="nameEntry">
+            <label class="name-entry__label" for="playerNameInput">🏷️ اكتب اسمك عشان يظهر في لوحة الأبطال</label>
+            <div class="name-entry__row">
+              <input id="playerNameInput" type="text" maxlength="16" autocomplete="nickname"
+                     dir="auto" enterkeyhint="done" placeholder="مثال: سارة" aria-label="اسم اللاعب">
+              <button id="saveNameBtn" type="button">حفظ</button>
+            </div>
+            <small class="name-entry__hint" id="nameHint">الاسم يتحفظ على هذا الجهاز مع نتيجتك.</small>
+          </div>
+          <div class="panel__actions">
+            <button class="btn btn--primary" type="button" id="againBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-restart"></use></svg>
+              العب تاني
+            </button>
+            <button class="btn btn--ghost" type="button" id="overMenuBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-home"></use></svg>
+              الرئيسية
+            </button>
+          </div>
+          <p class="over__tip" id="overTip"></p>
+        </div>
+      </section>
+
+      <!-- ============ إيقاف مؤقت ============ -->
+      <section class="screen screen--overlay" id="pauseScreen" hidden>
+        <div class="overlay-scrim"></div>
+        <div class="panel pause-panel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+          <div class="panel__ico" aria-hidden="true">⏸️</div>
+          <h2 class="panel__title" id="pauseTitle">وقفة صغيرة</h2>
+          <p class="panel__sub">خذ نفس... السحاب مستنيك.</p>
+          <div class="pause__score">وصلت <b id="pauseScore">0</b> متر</div>
+          <div class="panel__actions">
+            <button class="btn btn--primary" type="button" id="resumeBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"></use></svg>
+              كمّل
+            </button>
+            <button class="btn btn--soft" type="button" id="pauseSoundBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sound" class="js-sound-use"></use></svg>
+              <span class="js-sound-label">الصوت</span>
+            </button>
+            <button class="btn btn--ghost" type="button" id="pauseRestartBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-restart"></use></svg>
+              من الأول
+            </button>
+            <button class="btn btn--ghost" type="button" id="pauseMenuBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-home"></use></svg>
+              الرئيسية
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="hint" id="hint" hidden>
+        <span class="hint__hand" aria-hidden="true">👆</span>
+        <span>اسحب يمين وشمال عشان تتحكم</span>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ============ شيت النوافذ ============ -->
+  <div class="sheet-wrap" id="sheetWrap" hidden>
+    <div class="sheet-scrim" id="sheetScrim"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet__grab" aria-hidden="true"></div>
+      <div class="sheet__head">
+        <h2 id="sheetTitle"></h2>
+        <button class="sheet__close" type="button" id="sheetClose" aria-label="إغلاق">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-close"></use></svg>
+        </button>
+      </div>
+      <div class="sheet__body" id="sheetBody"></div>
+    </div>
+  </div>
+
+  <!-- ============ أيقونات SVG ============ -->
+  <svg width="0" height="0" class="sprite" aria-hidden="true">
+    <defs>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5Z" fill="currentColor"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><rect x="7" y="5" width="3.6" height="14" rx="1.6" fill="currentColor"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.6" fill="currentColor"/></symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.2v13.6l-4.5-4.3H4V9.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.2 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.2v13.6l-4.5-4.3H4V9.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m15.5 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.2 14.9 9l6.35.92-4.6 4.48 1.09 6.32L12 17.73 6.26 20.7 7.35 14.4l-4.6-4.48L9.1 9 12 3.2Z" fill="currentColor"/></symbol>
+      <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 5H4.5v1.5A3.5 3.5 0 0 0 8 10M16 5h3.5v1.5A3.5 3.5 0 0 1 16 10M12 13v4M8.5 20h7l-.8-3h-5.4l-.8 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9.5" r="5.8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m8.8 14.4-2 6 5.2-2.6 5.2 2.6-2-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m12 6.6 1 2 2.2.3-1.6 1.6.4 2.2-2-1-2 1 .4-2.2-1.6-1.6 2.2-.3 1-2Z" fill="currentColor"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.6 9.3A2.5 2.5 0 0 1 12 7.5c1.4 0 2.5.9 2.5 2.2 0 2-2.5 2-2.5 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.1" fill="currentColor"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-4M4 5v5h5M4 13a8 8 0 0 0 14.9 4M20 19v-5h-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-install" viewBox="0 0 24 24"><path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M14.5 4.5c2.6 0 5 2.4 5 5 0 4.2-4.2 8.2-8.6 10.4l-2.8-2.8C10.3 12.7 10.9 4.5 14.5 4.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="15" cy="9" r="1.7" fill="currentColor"/><path d="m8.1 17.1-3 .6.6-3M5.5 18.5l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-magnet" viewBox="0 0 24 24"><path d="M5 5v7a7 7 0 0 0 14 0V5h-4.5v7a2.5 2.5 0 0 1-5 0V5H5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 8.5h4.5M14.5 8.5H19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-medal" viewBox="0 0 24 24"><path d="m7 3 3.2 6M17 3l-3.2 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="14" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 11.4 13 13.5l2.2.3-1.6 1.6.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.6 2.2-.3 1-2.1Z" fill="currentColor"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.2 14.4A8.4 8.4 0 0 1 9.6 3.8a8.6 8.6 0 1 0 10.6 10.6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.3 5.3 7 7M17 17l1.7 1.7M18.7 5.3 17 7M7 17l-1.7 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    </defs>
+  </svg>
+
+  <script src="assets/js/audio.js?v=1.2.2"></script>
+  <script src="assets/js/art.js?v=1.2.2"></script>
+  <script src="assets/js/game.js?v=1.2.2"></script>
+  <script src="assets/js/ui.js?v=1.2.2"></script>
+</body>
+</html>
