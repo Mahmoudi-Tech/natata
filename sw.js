@@ -3,17 +3,17 @@
    ========================================================= */
 'use strict';
 
-var CACHE = 'natata-v1.4.4';
+var CACHE = 'natata-v1.4.6';
 var CORE = [
   './',
   'index.html',
   'manifest.webmanifest',
-  'assets/css/style.css?v=1.4.4',
-  'assets/js/audio.js?v=1.4.4',
-  'assets/js/art.js?v=1.4.4',
-  'assets/js/game.js?v=1.4.4',
-  'assets/js/online.js?v=1.4.4',
-  'assets/js/ui.js?v=1.4.4',
+  'assets/css/style.css?v=1.4.6',
+  'assets/js/audio.js?v=1.4.6',
+  'assets/js/art.js?v=1.4.6',
+  'assets/js/game.js?v=1.4.6',
+  'assets/js/online.js?v=1.4.6',
+  'assets/js/ui.js?v=1.4.6',
   'assets/fonts/cairo-arabic.woff2',
   'assets/fonts/cairo-latin.woff2',
   'assets/icons/icon-192.png',

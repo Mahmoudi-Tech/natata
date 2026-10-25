@@ -6,7 +6,7 @@
 
   var STORE_KEY = 'natata:v1';
   var MAX_RUNS = 8;
-  var VERSION = '1.4.4';
+  var VERSION = '1.4.6';
   var WA_NUMBER = '201010050851';
   var WA_TEXT = 'السلام عليكم 👋 جايه من لعبة النطاطة';
 
@@ -1118,7 +1118,7 @@
         '<p class="about-card__dev">تصميم وتطوير <span>Virus</span></p>' +
         '<a class="wa-contact" href="' + waHref() + '" target="_blank" rel="noopener noreferrer">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-whatsapp"></use></svg>' +
-          '<span>تواصل واتساب · 0101 005 0851</span>' +
+          '<span>تواصل واتساب · <bdi class="wa-num" dir="ltr">01010050851</bdi></span>' +
         '</a>' +
         '<p class="about-card__rights">© جميع الحقوق محفوظة لـ The Witcher Store</p>' +
       '</div>';

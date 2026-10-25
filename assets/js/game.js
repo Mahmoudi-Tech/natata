@@ -155,8 +155,13 @@
       if (!self.input.pointerActive) return;
       if (self.input.pointerId != null && e.pointerId !== self.input.pointerId) return;
       e.preventDefault();
-      self.input.targetX = self.toWorldX(e.clientX);
-    });
+      var ev = e;
+      if (typeof e.getCoalescedEvents === 'function') {
+        var list = e.getCoalescedEvents();
+        if (list && list.length) ev = list[list.length - 1];
+      }
+      self.input.targetX = self.toWorldX(ev.clientX);
+    }, { passive: false });
 
     function release(e) {
       if (self.input.pointerId != null && e.pointerId !== self.input.pointerId) return;
@@ -214,7 +219,10 @@
 
     this.cssW = w;
     this.cssH = h;
-    this.dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    /* الموبايل: تقليل كثافة البكسل شوية عشان الرسم يبقى أسرع واللمس يبقى سلس */
+    var maxDpr = 2.5;
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) maxDpr = 2;
+    this.dpr = Math.min(maxDpr, window.devicePixelRatio || 1);
     this.scale = w / W;
 
     var oldH = this.worldH;
@@ -516,13 +524,14 @@
 
     if (dir === 0 && this.input.pointerActive) {
       var diff = this.input.targetX - p.x;
-      if (Math.abs(diff) > 3) dir = clamp(diff / 42, -1, 1);
+      if (Math.abs(diff) > 1.2) dir = clamp(diff / 14, -1, 1);
     } else if (dir === 0 && this.tilt.enabled) {
       dir = this.tilt.value;
     }
 
     var targetVx = dir * SPEED;
-    p.vx += (targetVx - p.vx) * Math.min(1, dt * 13);
+    var accel = this.input.pointerActive ? 26 : 13;
+    p.vx += (targetVx - p.vx) * Math.min(1, dt * accel);
     p.x += p.vx * dt;
     p.x = clamp(p.x, p.r + 2, W - p.r - 2);
     if (dir > 0.12) p.dir = 1;
