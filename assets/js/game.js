@@ -21,7 +21,7 @@
 
   function Game(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: false });
+    this.ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     this.art = window.NatataArt;
     this.audio = window.NatataAudio || null;
 
@@ -36,6 +36,7 @@
     this.cssH = 700;
     this.dpr = 1;
     this.scale = 1;
+    this.rect = null;
     this.worldH = 700;
     this.cameraY = 0;
 
@@ -113,9 +114,23 @@
   Game.prototype.bindEvents = function () {
     var self = this;
 
-    window.addEventListener('resize', function () { self.resize(); });
+    /* بنأجل إعادة ضبط حجم الكانفس شوية: شريط عنوان الموبايل بيغيّر الارتفاع
+       كذا مرة ورا بعض، ولو أعدنا بناء الصورة مع كل تغيير اللعبة بتبقى متقطعة */
+    var resizeTimer = 0;
+    function queueResize() {
+      self.rect = self.canvas.getBoundingClientRect();
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        resizeTimer = 0;
+        self.resize();
+      }, 140);
+    }
+    window.addEventListener('resize', queueResize);
     if (window.ResizeObserver) {
-      new window.ResizeObserver(function () { self.resize(); }).observe(this.canvas);
+      new window.ResizeObserver(queueResize).observe(this.canvas);
+    }
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', queueResize);
     }
 
     window.addEventListener('keydown', function (e) {
@@ -144,7 +159,9 @@
 
     this.canvas.addEventListener('pointerdown', function (e) {
       if (self.state !== 'playing') return;
+      if (e.isPrimary === false) return;
       e.preventDefault();
+      self.rect = self.canvas.getBoundingClientRect();
       self.input.pointerActive = true;
       self.input.pointerId = e.pointerId;
       self.input.targetX = self.toWorldX(e.clientX);
@@ -153,20 +170,24 @@
 
     this.canvas.addEventListener('pointermove', function (e) {
       if (!self.input.pointerActive) return;
+      if (e.isPrimary === false) return;
       if (self.input.pointerId != null && e.pointerId !== self.input.pointerId) return;
-      e.preventDefault();
       var ev = e;
       if (typeof e.getCoalescedEvents === 'function') {
         var list = e.getCoalescedEvents();
         if (list && list.length) ev = list[list.length - 1];
       }
-      self.input.targetX = self.toWorldX(ev.clientX);
-    }, { passive: false });
+      var wx = self.toWorldX(ev.clientX);
+      /* لو الإصبع اتحرك مسافة كبيرة في نفس اللحظة، خُد نقطة أعلى شوية عشان ميبقاش متأخر */
+      self.input.targetX = wx;
+    }, { passive: true });
 
     function release(e) {
       if (self.input.pointerId != null && e.pointerId !== self.input.pointerId) return;
       self.input.pointerActive = false;
       self.input.pointerId = null;
+      /* لو الإصبع اتشال وهو سريع، خفف الانزلاق عشان النطاطة متكملش بعيد لوحدها */
+      if (self.player && Math.abs(self.player.vx) > SPEED) self.player.vx *= 0.4;
     }
     this.canvas.addEventListener('pointerup', release);
     this.canvas.addEventListener('pointercancel', release);
@@ -178,7 +199,7 @@
   };
 
   Game.prototype.toWorldX = function (clientX) {
-    var rect = this.canvas.getBoundingClientRect();
+    var rect = this.rect || this.canvas.getBoundingClientRect();
     if (!rect.width) return W / 2;
     return clamp(((clientX - rect.left) / rect.width) * W, 0, W);
   };
@@ -214,6 +235,7 @@
 
   Game.prototype.resize = function () {
     var rect = this.canvas.getBoundingClientRect();
+    this.rect = rect;
     var w = Math.max(1, rect.width);
     var h = Math.max(1, rect.height);
 
@@ -221,7 +243,7 @@
     this.cssH = h;
     /* الموبايل: تقليل كثافة البكسل شوية عشان الرسم يبقى أسرع واللمس يبقى سلس */
     var maxDpr = 2.5;
-    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) maxDpr = 2;
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) maxDpr = 1.75;
     this.dpr = Math.min(maxDpr, window.devicePixelRatio || 1);
     this.scale = w / W;
 
@@ -519,18 +541,24 @@
     this.updatePlatforms(dt);
 
     var dir = 0;
+    var speed = SPEED;
     if (this.input.left) dir -= 1;
     if (this.input.right) dir += 1;
 
     if (dir === 0 && this.input.pointerActive) {
       var diff = this.input.targetX - p.x;
-      if (Math.abs(diff) > 1.2) dir = clamp(diff / 14, -1, 1);
+      var dist = Math.abs(diff);
+      if (dist > 1.2) {
+        dir = diff < 0 ? -1 : 1;
+        /* كل ما الإصبع بعيد، النطاطة تجري أسرع عشان تلحق الإصبع بسرعة */
+        speed = clamp(dist * 20, 0, SPEED * 2.2);
+      }
     } else if (dir === 0 && this.tilt.enabled) {
       dir = this.tilt.value;
     }
 
-    var targetVx = dir * SPEED;
-    var accel = this.input.pointerActive ? 26 : 13;
+    var targetVx = dir * speed;
+    var accel = this.input.pointerActive ? 42 : 13;
     p.vx += (targetVx - p.vx) * Math.min(1, dt * accel);
     p.x += p.vx * dt;
     p.x = clamp(p.x, p.r + 2, W - p.r - 2);

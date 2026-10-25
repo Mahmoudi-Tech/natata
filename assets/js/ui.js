@@ -6,7 +6,7 @@
 
   var STORE_KEY = 'natata:v1';
   var MAX_RUNS = 8;
-  var VERSION = '1.4.6';
+  var VERSION = '1.4.7';
   var WA_NUMBER = '201010050851';
   var WA_TEXT = 'السلام عليكم 👋 جايه من لعبة النطاطة';
 
